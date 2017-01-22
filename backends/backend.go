@@ -3,12 +3,13 @@ package backends
 import (
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/flashmob/go-guerrilla/envelope"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	"github.com/flashmob/go-guerrilla/envelope"
 )
 
 // Backends process received mail. Depending on the implementation, they can store mail in the database,
@@ -198,6 +199,7 @@ func (gw *BackendGateway) Initialize(cfg BackendConfig) error {
 		gw.wg.Add(workersSize)
 		for i := 0; i < workersSize; i++ {
 			go func() {
+				log.Info("Saving")
 				gw.b.saveMailWorker(gw.saveMailChan)
 				gw.wg.Done()
 			}()

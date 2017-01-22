@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,9 +13,13 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/spf13/cobra"
+
+	"reflect"
+
 	"github.com/flashmob/go-guerrilla"
 	"github.com/flashmob/go-guerrilla/backends"
-	"reflect"
 )
 
 const (
@@ -98,6 +100,7 @@ func subscribeBackendEvent(event string, backend backends.Backend, app guerrilla
 func serve(cmd *cobra.Command, args []string) {
 	logVersion()
 
+	log.Info("HERE")
 	err := readConfig(configPath, pidFile, &cmdConfig)
 	if err != nil {
 		log.WithError(err).Fatal("Error while reading config")
