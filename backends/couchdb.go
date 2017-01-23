@@ -1,6 +1,9 @@
 package backends
 
 import (
+	"fmt"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -23,7 +26,6 @@ type CouchDBBackend struct {
 }
 
 func (b *CouchDBBackend) loadConfig(backendConfig BackendConfig) (err error) {
-	log.Info("loadConfig")
 	configType := baseConfig(&CouchDBConfig{})
 	bcfg, err := b.extractConfig(backendConfig, configType)
 	if err != nil {
@@ -37,4 +39,25 @@ func (b *CouchDBBackend) loadConfig(backendConfig BackendConfig) (err error) {
 func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 	log.Info("Save Called")
 
+	for {
+		payload := <-saveMailChan
+		if payload == nil {
+			log.Info("No more saveMailChan payload")
+			return
+		}
+
+		//recipient := payload.recipient.User + "@" + b.config.PrimaryHost
+		recipient := payload.recipient.User + "@phantomail.com"
+		length := payload.mail.Data.Len()
+		log.Info("length=", length)
+		receivedAt := fmt.Sprintf("%d", time.Now().UnixNano())
+		payload.mail.ParseHeaders()
+		hash := MD5Hex(
+			recipient,
+			payload.mail.MailFrom.String(),
+			payload.mail.Subject,
+			receivedAt,
+		)
+		log.Info("hash=", hash)
+	}
 }

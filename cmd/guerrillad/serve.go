@@ -100,7 +100,6 @@ func subscribeBackendEvent(event string, backend backends.Backend, app guerrilla
 func serve(cmd *cobra.Command, args []string) {
 	logVersion()
 
-	log.Info("HERE")
 	err := readConfig(configPath, pidFile, &cmdConfig)
 	if err != nil {
 		log.WithError(err).Fatal("Error while reading config")
