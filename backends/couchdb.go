@@ -1,11 +1,25 @@
 package backends
 
 import (
-	"fmt"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
+	couchdb "github.com/rhinoman/couchdb-go"
 )
+
+type Metadata struct {
+	Sender        string              `json:"sender"`
+	Recipients    []string            `json:"recipients"`
+	ReceivedAt    string              `json:"receivedAt"`
+	RemoteAddress string              `json:"remoteAddress"`
+	Subject       string              `json:"subject"`
+	Header        map[string][]string `json:"header"`
+}
+
+type EmailDocument struct {
+	Metadata Metadata `json:"metadata"`
+	Body     []byte   `json:"body"`
+}
 
 func init() {
 	backends["couchdb"] = &AbstractBackend{
@@ -39,6 +53,13 @@ func (b *CouchDBBackend) loadConfig(backendConfig BackendConfig) (err error) {
 func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 	log.Info("Save Called")
 
+	conn, err := couchdb.NewConnection("localhost", 5984, time.Duration(500*time.Millisecond))
+	if err != nil {
+		panic(err) // TODO: signal error response
+	}
+
+	db := conn.SelectDB("phantomail", &couchdb.BasicAuth{Username: "admin", Password: "password"})
+
 	for {
 		payload := <-saveMailChan
 		if payload == nil {
@@ -46,11 +67,10 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 			return
 		}
 
-		//recipient := payload.recipient.User + "@" + b.config.PrimaryHost
-		recipient := payload.recipient.User + "@phantomail.com"
+		recipient := payload.recipient.User + "@" + payload.recipient.Host
 		length := payload.mail.Data.Len()
 		log.Info("length=", length)
-		receivedAt := fmt.Sprintf("%d", time.Now().UnixNano())
+		receivedAt := time.Now().UTC().Format(time.RFC3339)
 		payload.mail.ParseHeaders()
 		hash := MD5Hex(
 			recipient,
@@ -59,13 +79,25 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 			receivedAt,
 		)
 		log.Info("hash=", hash)
-		// Add extra headers
-		var addHead string
-		addHead += "Delivered-To: " + recipient + "\r\n"
-		addHead += "Received: from " + payload.mail.Helo + " (" + payload.mail.Helo + "  [" + payload.mail.RemoteAddress + "])\r\n"
-		addHead += "	by " + payload.recipient.Host + " with SMTP id " + hash + "@" + payload.recipient.Host + ";\r\n"
-		addHead += "	" + time.Now().Format(time.RFC1123Z) + "\r\n"
-		log.Info(addHead)
+
+		emailDoc := EmailDocument{
+			Metadata{
+				Sender:        payload.from.User + "@" + payload.from.Host,
+				Recipients:    []string{recipient},
+				ReceivedAt:    receivedAt,
+				RemoteAddress: payload.mail.RemoteAddress,
+				Subject:       payload.mail.Subject,
+				Header:        payload.mail.Header,
+			},
+			payload.mail.Data.Bytes(),
+		}
+
+		rev, err := db.Save(emailDoc, hash, "")
+		if err != nil {
+			panic(err)
+		}
+
+		log.Info("Document saved: ", rev)
 		payload.savedNotify <- &saveStatus{nil, hash}
 	}
 }
