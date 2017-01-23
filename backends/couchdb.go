@@ -7,6 +7,7 @@ import (
 	couchdb "github.com/rhinoman/couchdb-go"
 )
 
+// Metadata store the metadata of the email
 type Metadata struct {
 	Sender        string              `json:"sender"`
 	Recipients    []string            `json:"recipients"`
@@ -14,8 +15,10 @@ type Metadata struct {
 	RemoteAddress string              `json:"remoteAddress"`
 	Subject       string              `json:"subject"`
 	Header        map[string][]string `json:"header"`
+	BodyLength    int                 `json:"bodyLength"`
 }
 
+// EmailDocument represents a received email
 type EmailDocument struct {
 	Metadata Metadata `json:"metadata"`
 	Body     []byte   `json:"body"`
@@ -29,6 +32,7 @@ func init() {
 
 type CouchDBConfig struct {
 	Host     string `json:"couchdb_host"`
+	Port     int    `json:"couchdb_port"`
 	User     string `json:"couchdb_user"`
 	Password string `json:"couchdb_password"`
 	DB       string `json:"couchdb_db"`
@@ -51,14 +55,12 @@ func (b *CouchDBBackend) loadConfig(backendConfig BackendConfig) (err error) {
 }
 
 func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
-	log.Info("Save Called")
-
-	conn, err := couchdb.NewConnection("localhost", 5984, time.Duration(500*time.Millisecond))
+	conn, err := couchdb.NewConnection(b.config.Host, b.config.Port, time.Duration(500*time.Millisecond))
 	if err != nil {
 		panic(err) // TODO: signal error response
 	}
 
-	db := conn.SelectDB("phantomail", &couchdb.BasicAuth{Username: "admin", Password: "password"})
+	db := conn.SelectDB(b.config.DB, &couchdb.BasicAuth{Username: b.config.User, Password: b.config.Password})
 
 	for {
 		payload := <-saveMailChan
@@ -69,8 +71,8 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 
 		recipient := payload.recipient.User + "@" + payload.recipient.Host
 		length := payload.mail.Data.Len()
-		log.Info("length=", length)
 		receivedAt := time.Now().UTC().Format(time.RFC3339)
+
 		payload.mail.ParseHeaders()
 		hash := MD5Hex(
 			recipient,
@@ -78,7 +80,6 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 			payload.mail.Subject,
 			receivedAt,
 		)
-		log.Info("hash=", hash)
 
 		emailDoc := EmailDocument{
 			Metadata{
@@ -88,6 +89,7 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 				RemoteAddress: payload.mail.RemoteAddress,
 				Subject:       payload.mail.Subject,
 				Header:        payload.mail.Header,
+				BodyLength:    length,
 			},
 			payload.mail.Data.Bytes(),
 		}
