@@ -59,5 +59,13 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 			receivedAt,
 		)
 		log.Info("hash=", hash)
+		// Add extra headers
+		var addHead string
+		addHead += "Delivered-To: " + recipient + "\r\n"
+		addHead += "Received: from " + payload.mail.Helo + " (" + payload.mail.Helo + "  [" + payload.mail.RemoteAddress + "])\r\n"
+		addHead += "	by " + payload.recipient.Host + " with SMTP id " + hash + "@" + payload.recipient.Host + ";\r\n"
+		addHead += "	" + time.Now().Format(time.RFC1123Z) + "\r\n"
+		log.Info(addHead)
+		payload.savedNotify <- &saveStatus{nil, hash}
 	}
 }
