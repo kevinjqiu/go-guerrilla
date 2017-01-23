@@ -1,6 +1,7 @@
 package backends
 
 import (
+	"bytes"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -30,6 +31,7 @@ func init() {
 	}
 }
 
+// CouchDBConfig is a collection of configuration for the couchdb backend
 type CouchDBConfig struct {
 	Host     string `json:"couchdb_host"`
 	Port     int    `json:"couchdb_port"`
@@ -38,6 +40,7 @@ type CouchDBConfig struct {
 	DB       string `json:"couchdb_db"`
 }
 
+// CouchDBBackend is the couchdb backend for go-guerrilla
 type CouchDBBackend struct {
 	AbstractBackend
 	config CouchDBConfig
@@ -98,6 +101,9 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 		if err != nil {
 			panic(err)
 		}
+
+		// TODO: handle error
+		db.SaveAttachment(hash, rev, "emailBody", "text/plain", bytes.NewReader(payload.mail.Data.Bytes()))
 
 		log.Info("Document saved: ", rev)
 		payload.savedNotify <- &saveStatus{nil, hash}
