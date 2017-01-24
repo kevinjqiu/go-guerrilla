@@ -22,7 +22,6 @@ type Metadata struct {
 // EmailDocument represents a received email
 type EmailDocument struct {
 	Metadata Metadata `json:"metadata"`
-	Body     []byte   `json:"body"`
 }
 
 func init() {
@@ -94,7 +93,6 @@ func (b *CouchDBBackend) saveMailWorker(saveMailChan chan *savePayload) {
 				Header:        payload.mail.Header,
 				BodyLength:    length,
 			},
-			payload.mail.Data.Bytes(),
 		}
 
 		rev, err := db.Save(emailDoc, hash, "")
