@@ -13,3 +13,7 @@ import:
   version: 52a0dcfcbd8299da13aad44b96a6642dd79cbb08
 - package: github.com/go-sql-driver/mysql
   version: ^1.3.0
+- package: github.com/boltdb/bolt
+  version: ^1.3.1
+  subpackages:
+  - '...'
